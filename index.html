@@ -736,6 +736,16 @@ async function handleCellClick(r,c) {
   
   if (hammerMode) {
       if (board[r][c] === -1 && boardObs[r][c] === 0) return;
+      
+      // Jangan hancurkan drop target (ceri/8) menggunakan palu
+      if (board[r][c] === 8) {
+          SFX.noMatch();
+          hammerMode = false;
+          document.getElementById('board-wrap').classList.remove('hammer-active');
+          document.getElementById('btn-inv-hammer').classList.remove('active');
+          return;
+      }
+
       processing = true;
       hammerMode = false;
       document.getElementById('board-wrap').classList.remove('hammer-active');
@@ -791,12 +801,13 @@ async function doSwap(r1,c1,r2,c2) {
     swapData(r1,c1,r2,c2); rebuildCell(r1,c1); rebuildCell(r2,c2);
     
     let matched = [];
-    if (isRainbow1 && color2 >= 0) {
+    // Rainbow bomb tidak mempan ke target (ceri/8)
+    if (isRainbow1 && color2 >= 0 && color2 < 8) {
         matched.push({r:r2, c:c2}); 
         for(let r=0; r<levelData.gridSize; r++) for(let c=0; c<levelData.gridSize; c++) {
             if(board[r][c] === color2 && boardObs[r][c] !== 4) matched.push({r,c});
         }
-    } else if (isRainbow2 && color1 >= 0) {
+    } else if (isRainbow2 && color1 >= 0 && color1 < 8) {
         matched.push({r:r1, c:c1});
         for(let r=0; r<levelData.gridSize; r++) for(let c=0; c<levelData.gridSize; c++) {
             if(board[r][c] === color1 && boardObs[r][c] !== 4) matched.push({r,c});
@@ -854,25 +865,30 @@ function expandMatches(initialMatches) {
     while(toProcess.length > 0) {
         let curr = toProcess.pop();
         let key = `${curr.r},${curr.c}`;
+        
         if(processed.has(key)) continue;
+        
+        // JANGAN hancurkan drop target (ceri/8) dalam ledakan apapun
+        if(board[curr.r][curr.c] === 8) continue;
+
         processed.add(key);
         finalMatches.push(curr);
 
         let sp = boardSpecial[curr.r][curr.c];
         if (sp === 1) { 
             for(let c=0; c<levelData.gridSize; c++) {
-                if(!processed.has(`${curr.r},${c}`) && boardObs[curr.r][c] !== 4) toProcess.push({r:curr.r, c});
+                if(!processed.has(`${curr.r},${c}`) && boardObs[curr.r][c] !== 4 && board[curr.r][c] !== 8) toProcess.push({r:curr.r, c});
             }
         } else if (sp === 2) { 
             for(let r=0; r<levelData.gridSize; r++) {
-                if(!processed.has(`${r},${curr.c}`) && boardObs[r][curr.c] !== 4) toProcess.push({r, c:curr.c});
+                if(!processed.has(`${r},${curr.c}`) && boardObs[r][curr.c] !== 4 && board[r][curr.c] !== 8) toProcess.push({r, c:curr.c});
             }
         } else if (sp === 4) { 
             for(let dr=-1; dr<=1; dr++) {
                 for(let dc=-1; dc<=1; dc++) {
                     let nr = curr.r + dr, nc = curr.c + dc;
                     if(nr>=0 && nr<levelData.gridSize && nc>=0 && nc<levelData.gridSize) {
-                        if(!processed.has(`${nr},${nc}`) && boardObs[nr][nc] !== 4) toProcess.push({r:nr, c:nc});
+                        if(!processed.has(`${nr},${nc}`) && boardObs[nr][nc] !== 4 && board[nr][nc] !== 8) toProcess.push({r:nr, c:nc});
                     }
                 }
             }
@@ -961,7 +977,10 @@ function tickBombs() {
         for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++) { 
           const nr=r+dr,nc=c+dc; 
           if(nr>=0&&nr<sz&&nc>=0&&nc<sz) { 
-            board[nr][nc]=-1; boardSpecial[nr][nc]=0; boardBomb[nr][nc]=0; boardObs[nr][nc]=0; boardCham[nr][nc]=false; 
+            // Jangan hancurkan drop target (ceri/8) meski bom meledak
+            if (board[nr][nc] !== 8) {
+                board[nr][nc]=-1; boardSpecial[nr][nc]=0; boardBomb[nr][nc]=0; boardObs[nr][nc]=0; boardCham[nr][nc]=false; 
+            }
           } 
         } 
         exploded=true; 
